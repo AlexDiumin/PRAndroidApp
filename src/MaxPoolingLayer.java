@@ -54,8 +54,8 @@ public class MaxPoolingLayer {
 
         // проходимся по каждому из каналов
         for (int d = 0; d < inputSize.depth; d++) {
-            for (int h = 0; h < inputSize.height; h++) {
-                for (int w = 0; w < inputSize.width; w++) {
+            for (int h = 0; h < inputSize.height; h += scale) {
+                for (int w = 0; w < inputSize.width; w += scale) {
                     int hMax = h; // индекс строки мвксимума
                     int wMax = w; // индекс столбца максимума
                     BigDecimal max = input.getByIndex(d, h, w); // начальное значение максимума - значение первой клетки подматрицы

@@ -11,9 +11,6 @@ public class Tensor {
     // инициализация по размерам
     private void init(int width, int height, int depth) {
         size = new TensorSize(depth, height, width);
-//        size.width = width;
-//        size.height = height;
-//        size.depth = depth;
 
         dw = depth*width;
 
@@ -55,7 +52,7 @@ public class Tensor {
         for (int d = 0; d < tensor.size.depth; d++) {
             for (int h = 0; h < tensor.size.height; h++) {
                 for (int w = 0; w < tensor.size.width; w++)
-                    System.out.print(tensor.values.get(h* tensor.dw + w*tensor.size.depth + d) + " ");
+                    System.out.print(tensor.values.get(h*tensor.dw + w*tensor.size.depth + d) + " ");
 
                 System.out.println();
             }
