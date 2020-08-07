@@ -200,11 +200,18 @@ public class ConvolutionalLayer {
      * однако ничего не мешает реализовать более быстрые алгоритмы, как, например, Adam, Adagrad, RMSprop
      */
     // обновление весовых коэффициентов
-    public void updateWeights(BigDecimal learningRate) {
+    public void updateWeights(BigDecimal learningRate/*, String compareTo*/) {
         for (int f = 0; f < filtersCount; f++) {
             for (int h = 0; h < filterSize; h++) {
                 for (int w = 0; w < filterSize; w++) {
                     for (int d = 0; d < filterDepth; d++) {
+
+                        /*// вычитаем градиент, умноженный на скорость обучения
+                        if (compareTo.equals(">"))
+                            filters.get(f).setByIndex(d, h, w, filters.get(f).getByIndex(d, h, w).subtract(learningRate.multiply(gradFilters.get(f).getByIndex(d, h, w), mathContext20), mathContext20));
+                        else
+                            filters.get(f).setByIndex(d, h, w, filters.get(f).getByIndex(d, h, w).add(learningRate.multiply(gradFilters.get(f).getByIndex(d, h, w), mathContext20), mathContext20));*/
+
                         // вычитаем градиент, умноженный на скорость обучения
                         filters.get(f).setByIndex(d, h, w, filters.get(f).getByIndex(d, h, w).subtract(learningRate.multiply(gradFilters.get(f).getByIndex(d, h, w), mathContext20), mathContext20));
                         // обнуляем градиент фильтра
@@ -212,6 +219,11 @@ public class ConvolutionalLayer {
                     }
                 }
             }
+
+            /*if (compareTo.equals(">"))
+                biases.set(f, biases.get(f).subtract(learningRate.multiply(gradBiases.get(f), mathContext20), mathContext20)); // вычитаем градиент, умноженный на скорость обучения
+            else
+                biases.set(f, biases.get(f).add(learningRate.multiply(gradBiases.get(f), mathContext20), mathContext20)); // вычитаем градиент, умноженный на скорость обучения*/
 
             biases.set(f, biases.get(f).subtract(learningRate.multiply(gradBiases.get(f), mathContext20), mathContext20)); // вычитаем градиент, умноженный на скорость обучения
             gradBiases.set(f, BigDecimal.ZERO); // обнуляем градиент веса смещения

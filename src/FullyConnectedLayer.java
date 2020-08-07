@@ -61,8 +61,8 @@ public class FullyConnectedLayer {
             for (int j = 0; j < inputsCount; j++)
                 weightsMatrix.setByIndex(i, j, BigDecimal.valueOf(new Random().nextGaussian()*Math.sqrt(2. / (inputSize.height*inputSize.width*inputSize.depth))));
 
-            biases.add(BigDecimal.valueOf(0.01)); // все смещения делаем равными 0.01
-//            biases.set(i, BigDecimal.valueOf(0.01)); // все смещения делаем равными 0.01
+//            biases.add(BigDecimal.valueOf(0.01)); // все смещения делаем равными 0.01
+            biases.set(i, BigDecimal.valueOf(0.01)); // все смещения делаем равными 0.01
         }
     }
 
@@ -139,6 +139,12 @@ public class FullyConnectedLayer {
 
         biases = new Vector<>(outputsCount); // создаем вектор смещений
         gradBiases = new Vector<>(outputsCount); // создаём вектор градиентов по весам смещения
+        // +++ -----------------------------------------------------
+        for (int i = 0; i < outputsCount; i++) {
+            biases.add(BigDecimal.ZERO);
+            gradBiases.add(BigDecimal.ZERO);
+        }
+        // ---------------------------------------------------------
 
         initWeights(); // инициализируем весовые коэффициенты
     }
@@ -201,8 +207,8 @@ public class FullyConnectedLayer {
             for (int j = 0; j < inputsCount; j++)
                 gradWeightsMatrix.setByIndex(i, j, gradFuncActivation.getByIndex(i).multiply(input.getByIndex(j), mathContext20));
 
-            gradBiases.add(gradFuncActivation.getByIndex(i));
-//            gradBiases.set(i, gradFuncActivation.getByIndex(i));
+//            gradBiases.add(gradFuncActivation.getByIndex(i));
+            gradBiases.set(i, gradFuncActivation.getByIndex(i));
         }
 
         Tensor gradInput = new Tensor(inputSize); // создаём тензор для градиентов по входам
@@ -221,10 +227,22 @@ public class FullyConnectedLayer {
     }
 
     // обновление весовых коэффициентов
-    public void updateWeights(BigDecimal learningRate) {
+    public void updateWeights(BigDecimal learningRate/*, String compareTo*/) {
         for (int i = 0; i < outputsCount; i++) {
-            for (int j = 0; j < inputsCount; j++)
+            for (int j = 0; j < inputsCount; j++) {
+
+                /*if (compareTo.equals(">"))
+                    weightsMatrix.setByIndex(i, j, weightsMatrix.getByIndex(i, j).subtract(learningRate.multiply(gradWeightsMatrix.getByIndex(i, j), mathContext20), mathContext20));
+                else
+                    weightsMatrix.setByIndex(i, j, weightsMatrix.getByIndex(i, j).add(learningRate.multiply(gradWeightsMatrix.getByIndex(i, j), mathContext20), mathContext20));*/
+
                 weightsMatrix.setByIndex(i, j, weightsMatrix.getByIndex(i, j).subtract(learningRate.multiply(gradWeightsMatrix.getByIndex(i, j), mathContext20), mathContext20));
+            }
+
+            /*if (compareTo.equals(">"))
+                biases.set(i, biases.get(i).subtract(learningRate.multiply(gradBiases.get(i), mathContext20), mathContext20)); // обновляем веса смещения
+            else
+                biases.set(i, biases.get(i).add(learningRate.multiply(gradBiases.get(i), mathContext20), mathContext20)); // обновляем веса смещения*/
 
             biases.set(i, biases.get(i).subtract(learningRate.multiply(gradBiases.get(i), mathContext20), mathContext20)); // обновляем веса смещения
         }

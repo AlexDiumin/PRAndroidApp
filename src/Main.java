@@ -29,9 +29,9 @@ public class Main {
             output = new Tensor(outputSize);
             for (int h = 0; h < inputSize.height; h++) {
                 for (int w = 0; w < inputSize.width; w++) {
-                    input.setByIndex(0, h, w, BigDecimal.valueOf(new Color(bufferedImages0.get(i).getRGB(h, w)).getRed()));
-                    input.setByIndex(1, h, w, BigDecimal.valueOf(new Color(bufferedImages0.get(i).getRGB(h, w)).getGreen()));
-                    input.setByIndex(2, h, w, BigDecimal.valueOf(new Color(bufferedImages0.get(i).getRGB(h, w)).getBlue()));
+                    input.setByIndex(0, h, w, BigDecimal.valueOf(new Color(bufferedImages0.get(i).getRGB(h, w)).getRed()/255.));
+                    input.setByIndex(1, h, w, BigDecimal.valueOf(new Color(bufferedImages0.get(i).getRGB(h, w)).getGreen()/255.));
+                    input.setByIndex(2, h, w, BigDecimal.valueOf(new Color(bufferedImages0.get(i).getRGB(h, w)).getBlue()/255.));
                 }
             }
             inputTensors.add(input);
@@ -51,9 +51,9 @@ public class Main {
             output = new Tensor(outputSize);
             for (int h = 0; h < inputSize.height; h++) {
                 for (int w = 0; w < inputSize.width; w++) {
-                    input.setByIndex(0, h, w, BigDecimal.valueOf(new Color(bufferedImages1.get(i).getRGB(h, w)).getRed()));
-                    input.setByIndex(1, h, w, BigDecimal.valueOf(new Color(bufferedImages1.get(i).getRGB(h, w)).getGreen()));
-                    input.setByIndex(2, h, w, BigDecimal.valueOf(new Color(bufferedImages1.get(i).getRGB(h, w)).getBlue()));
+                    input.setByIndex(0, h, w, BigDecimal.valueOf(new Color(bufferedImages1.get(i).getRGB(h, w)).getRed()/255.));
+                    input.setByIndex(1, h, w, BigDecimal.valueOf(new Color(bufferedImages1.get(i).getRGB(h, w)).getGreen()/255.));
+                    input.setByIndex(2, h, w, BigDecimal.valueOf(new Color(bufferedImages1.get(i).getRGB(h, w)).getBlue()/255.));
                 }
             }
             inputTensors.add(input);
@@ -66,72 +66,104 @@ public class Main {
         bufferedImages1.clear();
 
 
-        int N = 20; // кол-во эпох
-        int imagesCount = inputTensors.size();
-        ConvolutionalLayer convolutionalLayer1 = new ConvolutionalLayer(inputSize, 3, 5, 0, 1);
-        SigmoidLayer sigmoidLayer1 = new SigmoidLayer(new TensorSize(3, 92, 92));
-        MaxPoolingLayer maxPoolingLayer1 = new MaxPoolingLayer(new TensorSize(3, 92, 92));
-        ConvolutionalLayer convolutionalLayer2 = new ConvolutionalLayer(new TensorSize(3, 46, 46), 3, 5, 0, 1);
-        SigmoidLayer sigmoidLayer2 = new SigmoidLayer(new TensorSize(3, 42, 42));
-        MaxPoolingLayer maxPoolingLayer2 = new MaxPoolingLayer(new TensorSize(3, 42, 42));
-        FullyConnectedLayer fullyConnectedLayer1 = new FullyConnectedLayer(new TensorSize(3, 21, 21), 1, "sigmoid");
+        int N = 2000; // кол-во эпох
+        int imagesCount = inputTensors.size(); // кол-во входящих изображений/тензоров
+        int channelsCount = 1; // кол-во каналов/признаков
+        ConvolutionalLayer[] convolutionalLayer1 = new ConvolutionalLayer[channelsCount]; // = new ConvolutionalLayer(inputSize, 3, 5, 0, 1);
+        SigmoidLayer[] sigmoidLayer1 = new SigmoidLayer[channelsCount];// = new SigmoidLayer(new TensorSize(3, 92, 92));
+        MaxPoolingLayer[] maxPoolingLayer1 = new MaxPoolingLayer[channelsCount]; // = new MaxPoolingLayer(new TensorSize(3, 92, 92));
+        ConvolutionalLayer[] convolutionalLayer2 = new ConvolutionalLayer[channelsCount]; // new ConvolutionalLayer(new TensorSize(3, 46, 46), 3, 5, 0, 1);
+        SigmoidLayer[] sigmoidLayer2 = new SigmoidLayer[channelsCount]; // = new SigmoidLayer(new TensorSize(3, 42, 42));
+        MaxPoolingLayer[] maxPoolingLayer2 = new MaxPoolingLayer[channelsCount]; // = new MaxPoolingLayer(new TensorSize(3, 42, 42));
+        FullyConnectedLayer[] fullyConnectedLayer1 = new FullyConnectedLayer[channelsCount]; // = new FullyConnectedLayer(new TensorSize(3, 21, 21), 1, "sigmoid");
+        for (int i = 0; i < channelsCount; i++) {
+            convolutionalLayer1[i] = new ConvolutionalLayer(inputSize, 3, 5, 0, 1);
+            sigmoidLayer1[i] = new SigmoidLayer(new TensorSize(3, 92, 92));
+            maxPoolingLayer1[i] = new MaxPoolingLayer(new TensorSize(3, 92, 92));
+            convolutionalLayer2[i] = new ConvolutionalLayer(new TensorSize(3, 46, 46), 3, 5, 0, 1);
+            sigmoidLayer2[i] = new SigmoidLayer(new TensorSize(3, 42, 42));
+            maxPoolingLayer2[i] = new MaxPoolingLayer(new TensorSize(3, 42, 42));
+            fullyConnectedLayer1[i] = new FullyConnectedLayer(new TensorSize(3, 21, 21), 1, "sigmoid");
+        }
+        FullyConnectedLayer fullyConnectedLayer2 = new FullyConnectedLayer(new TensorSize(1, 1, channelsCount), 1, "sigmoid");
         // прямое распространение
-        Tensor convolutionalForwardOutput1;
-        Tensor sigmoidForwardOutput1;
-        Tensor maxPoolingForwardOutput1;
-        Tensor convolutionalForwardOutput2;
-        Tensor sigmoidForwardOutput2;
-        Tensor maxPoolingForwardOutput2;
-        Tensor fullyConnectedForwardOutput1;
+        Tensor[] convolutionalForwardOutput1 = new Tensor[channelsCount];
+        Tensor[] sigmoidForwardOutput1 = new Tensor[channelsCount];
+        Tensor[] maxPoolingForwardOutput1 = new Tensor[channelsCount];
+        Tensor[] convolutionalForwardOutput2 = new Tensor[channelsCount];
+        Tensor[] sigmoidForwardOutput2 = new Tensor[channelsCount];
+        Tensor[] maxPoolingForwardOutput2 = new Tensor[channelsCount];
+        Tensor[] fullyConnectedForwardOutput1 = new Tensor[channelsCount];
+        Tensor fullyConnectedForwardOutput2;
+        Tensor dOut = new Tensor(1, 1, 1);
         // обратное распространение
-        Tensor convolutionalBackwardOutput1;
-        Tensor sigmoidBackwardOutput1;
-        Tensor maxPoolingBackwardOutput1;
-        Tensor convolutionalBackwardOutput2;
-        Tensor sigmoidBackwardOutput2;
-        Tensor maxPoolingBackwardOutput2;
-        Tensor fullyConnectedBackwardOutput1;
+        Tensor[] convolutionalBackwardOutput1 = new Tensor[channelsCount];
+        Tensor[] sigmoidBackwardOutput1 = new Tensor[channelsCount];
+        Tensor[] maxPoolingBackwardOutput1 = new Tensor[channelsCount];
+        Tensor[] convolutionalBackwardOutput2 = new Tensor[channelsCount];
+        Tensor[] sigmoidBackwardOutput2 = new Tensor[channelsCount];
+        Tensor[] maxPoolingBackwardOutput2 = new Tensor[channelsCount];
+        Tensor[] fullyConnectedBackwardOutput1 = new Tensor[channelsCount];
+        Tensor fullyConnectedBackwardOutput2;
         BigDecimal error; // ошибка для статистики
         int statistic; // статистика
-        BigDecimal learningRate = BigDecimal.valueOf(0.5); // скорость обучения
+        BigDecimal learningRate = BigDecimal.valueOf(0.7); // скорость обучения
         for (int n = 0; n < N; n++) {
+            dOut.setByIndex(0, BigDecimal.ZERO);
             error = BigDecimal.ZERO;
             statistic = imagesCount;
             for (int i = 0; i < imagesCount; i++) {
 
                 // прямое распространение
-                convolutionalForwardOutput1 = convolutionalLayer1.forward(inputTensors.get(i));        // 1 сверточный слой
-                sigmoidForwardOutput1 = sigmoidLayer1.forward(convolutionalForwardOutput1);            // 1 активационный слой
-                maxPoolingForwardOutput1 = maxPoolingLayer1.forward(sigmoidForwardOutput1);            // 1 подвыборочный слой
-                convolutionalForwardOutput2 = convolutionalLayer2.forward(maxPoolingForwardOutput1);   // 2 сверточный слой
-                sigmoidForwardOutput2 = sigmoidLayer2.forward(convolutionalForwardOutput2);            // 2 активационный слой
-                maxPoolingForwardOutput2 = maxPoolingLayer2.forward(sigmoidForwardOutput2);            // 2 подвыборочный слой
-                fullyConnectedForwardOutput1 = fullyConnectedLayer1.forward(maxPoolingForwardOutput2); // 1 полносвязный слой
+                for (int j = 0; j < channelsCount; j++) {
+                    convolutionalForwardOutput1[j] = convolutionalLayer1[j].forward(inputTensors.get(i));           // 1 сверточный слой
+                    sigmoidForwardOutput1[j] = sigmoidLayer1[j].forward(convolutionalForwardOutput1[j]);            // 1 активационный слой
+                    maxPoolingForwardOutput1[j] = maxPoolingLayer1[j].forward(sigmoidForwardOutput1[j]);            // 1 подвыборочный слой
+                    convolutionalForwardOutput2[j] = convolutionalLayer2[j].forward(maxPoolingForwardOutput1[j]);   // 2 сверточный слой
+                    sigmoidForwardOutput2[j] = sigmoidLayer2[j].forward(convolutionalForwardOutput2[j]);            // 2 активационный слой
+                    maxPoolingForwardOutput2[j] = maxPoolingLayer2[j].forward(sigmoidForwardOutput2[j]);            // 2 подвыборочный слой
+                    fullyConnectedForwardOutput1[j] = fullyConnectedLayer1[j].forward(maxPoolingForwardOutput2[j]); // 1 полносвязный слой
+                }
+                fullyConnectedForwardOutput2 = fullyConnectedLayer2.forward(Tensor.arrayToTensor(fullyConnectedForwardOutput1));
 
                 // расчет ошибки для статистики
-                if (fullyConnectedForwardOutput1.getByIndex(0).compareTo(outputTensors.get(i).getByIndex(0)) != 0) {
-                    error = error.add(((outputTensors.get(i).getByIndex(0).subtract(fullyConnectedForwardOutput1.getByIndex(0), mathContext20)).pow(2)).divide(BigDecimal.valueOf(imagesCount), mathContext20), mathContext20);
-                    statistic--;
+                if (fullyConnectedForwardOutput2.getByIndex(0).compareTo(outputTensors.get(i).getByIndex(0)) != 0) {
+                    error = error.add(((outputTensors.get(i).getByIndex(0).subtract(fullyConnectedForwardOutput2.getByIndex(0), mathContext20)).pow(2)).divide(BigDecimal.valueOf(imagesCount), mathContext20), mathContext20);
+                    statistic--;;
                 }
 
+                // градиент на выходе
+                dOut.setByIndex(0, (fullyConnectedForwardOutput2.getByIndex(0).subtract(outputTensors.get(i).getByIndex(0), mathContext20)).multiply(fullyConnectedForwardOutput2.getByIndex(0), mathContext20).multiply(BigDecimal.ONE.subtract(fullyConnectedForwardOutput2.getByIndex(0), mathContext20)) );
+
                 // обратное распространение
-                fullyConnectedBackwardOutput1 = fullyConnectedLayer1.backward(fullyConnectedForwardOutput1, maxPoolingForwardOutput2);
-                maxPoolingBackwardOutput2 = maxPoolingLayer2.backward(fullyConnectedBackwardOutput1, sigmoidForwardOutput2);
-                sigmoidBackwardOutput2 = sigmoidLayer2.backward(maxPoolingBackwardOutput2, convolutionalForwardOutput2);
-                convolutionalBackwardOutput2 = convolutionalLayer2.backward(sigmoidBackwardOutput2, maxPoolingForwardOutput1);
-                maxPoolingBackwardOutput1 = maxPoolingLayer1.backward(convolutionalBackwardOutput2, sigmoidForwardOutput1);
-                sigmoidBackwardOutput1 = sigmoidLayer1.backward(maxPoolingBackwardOutput1, convolutionalForwardOutput1);
-                convolutionalBackwardOutput1 = convolutionalLayer1.backward(sigmoidBackwardOutput1, inputTensors.get(i));
+                for (int j = 0; j < channelsCount; j++) {
+                    fullyConnectedBackwardOutput2 = fullyConnectedLayer2.backward(dOut, Tensor.arrayToTensor(fullyConnectedForwardOutput1));
+                    fullyConnectedBackwardOutput1[j] = fullyConnectedLayer1[j].backward(fullyConnectedBackwardOutput2, maxPoolingForwardOutput2[j]);
+                    maxPoolingBackwardOutput2[j] = maxPoolingLayer2[j].backward(fullyConnectedBackwardOutput1[j], sigmoidForwardOutput2[j]);
+                    sigmoidBackwardOutput2[j] = sigmoidLayer2[j].backward(maxPoolingBackwardOutput2[j], convolutionalForwardOutput2[j]);
+                    convolutionalBackwardOutput2[j] = convolutionalLayer2[j].backward(sigmoidBackwardOutput2[j], maxPoolingForwardOutput1[j]);
+                    maxPoolingBackwardOutput1[j] = maxPoolingLayer1[j].backward(convolutionalBackwardOutput2[j], sigmoidForwardOutput1[j]);
+                    sigmoidBackwardOutput1[j] = sigmoidLayer1[j].backward(maxPoolingBackwardOutput1[j], convolutionalForwardOutput1[j]);
+                    convolutionalBackwardOutput1[j] = convolutionalLayer1[j].backward(sigmoidBackwardOutput1[j], inputTensors.get(i));
+                }
 
                 // обновление весовых коэффициентов
-                convolutionalLayer1.updateWeights(learningRate);
-                convolutionalLayer2.updateWeights(learningRate);
-                fullyConnectedLayer1.updateWeights(learningRate);
+                for (int j = 0; j < channelsCount; j++) {
+                    convolutionalLayer1[j].updateWeights(learningRate);
+                    convolutionalLayer2[j].updateWeights(learningRate);
+                    fullyConnectedLayer1[j].updateWeights(learningRate);
+                }
+                fullyConnectedLayer2.updateWeights(learningRate);
             }
 
             System.out.println(n + " Error: " + error);
             System.out.println(n + " Statistic: " + (double) statistic/imagesCount);
             System.out.println();
+
+            /*if (error.equals(BigDecimal.ZERO) || statistic == imagesCount) {
+                System.out.println("!!! CONGRATULATION !!!");
+                break;
+            }*/
         }
     }
 

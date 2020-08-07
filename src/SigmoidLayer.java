@@ -24,8 +24,16 @@ public class SigmoidLayer {
         // проходимся по всем значениям входного тензора
         for (int h = 0; h < size.height; h++) {
             for (int w = 0; w < size.width; w++) {
-                for (int d = 0; d < size.depth; d++)
+                for (int d = 0; d < size.depth; d++) {
+                    /*// +++ -----------------------------------------
+                    // вычисляем значение функции активации
+                    if (input.getByIndex(d, h, w).compareTo(BigDecimal.ZERO) > 0)
+                        output.setByIndex(d, h, w, input.getByIndex(d, h, w));
+                    else
+                        output.setByIndex(d, h, w, BigDecimal.ZERO);
+                    // ---------------------------------------------*/
                     output.setByIndex(d, h, w, sigmoid(input.getByIndex(d, h, w))); // вычисляем значение функции активации
+                }
             }
         }
 
@@ -41,6 +49,12 @@ public class SigmoidLayer {
         for (int h = 0; h < size.height; h++) {
             for (int w = 0; w < size.width; w++) {
                 for (int d = 0; d < size.depth; d++) {
+                    /*// +++ -----------------------------------------
+                    if (input.getByIndex(d, h, w).compareTo(BigDecimal.ZERO) > 0)
+                        gradInput.setByIndex(d, h, w, dOut.getByIndex(d, h, w));
+                    else
+                        gradInput.setByIndex(d, h, w, BigDecimal.ZERO);
+                    // ---------------------------------------------*/
                     sigmoidResult = sigmoid(input.getByIndex(d, h, w));
                     // умножаем градиент следующего слоя на производную функции активации
                     gradInput.setByIndex(d, h, w, dOut.getByIndex(d, h, w).multiply(sigmoidResult.multiply(BigDecimal.ONE.subtract(sigmoidResult, mathContext20), mathContext20), mathContext20));

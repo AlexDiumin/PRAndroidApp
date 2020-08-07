@@ -72,4 +72,11 @@ public class Tensor {
             System.out.println();
         }
     }
+
+    public static Tensor arrayToTensor(Tensor[] tensorsArray) {
+        Tensor result = new Tensor(tensorsArray.length, 1, 1);
+        for (int i = 0; i < tensorsArray.length; i++)
+            result.setByIndex(i, tensorsArray[i].getByIndex(0));
+        return result;
+    }
 }
