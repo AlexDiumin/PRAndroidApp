@@ -7,8 +7,8 @@ public class NeuralNetwork {
     private static final MathContext mathContext20 = new MathContext(20);
 
     // гиперпараметры
-    private static final BigDecimal epsilon = BigDecimal.valueOf(0.7);
-    private static final BigDecimal alpha = BigDecimal.valueOf(0.07);
+    private static final BigDecimal epsilon = BigDecimal.valueOf(0.8);
+    private static final BigDecimal alpha = BigDecimal.valueOf(0.08);
     private final int classesCount;
 
     private BigDecimal grad;
@@ -29,9 +29,8 @@ public class NeuralNetwork {
             deltasSynapticWeights1[c] = new BigDecimal[input[0].length][];
             for (int h = 0; h < input[0].length; h++) { // для каждого канала
                 synapticWeights1[c][h] = new BigDecimal[input[0][0].length];
-//                Arrays.fill(synapticWeights1[c][h], BigDecimal.valueOf(2. * Math.random() - 1.));
                 for (int w = 0; w < input[0][0].length; w++)
-                    synapticWeights1[c][h][w] = BigDecimal.valueOf(2. * Math.random() - 1.);
+                    synapticWeights1[c][h][w] = BigDecimal.valueOf(Math.random() - 0.5);
                 deltasSynapticWeights1[c][h] = new BigDecimal[input[0][0].length];
                 Arrays.fill(deltasSynapticWeights1[c][h], BigDecimal.ZERO);
             }
@@ -42,9 +41,8 @@ public class NeuralNetwork {
         deltasSynapticWeights2 = new BigDecimal[classesCount][];
         for (int c = 0; c < classesCount; c++) { // для каждого класса
             synapticWeights2[c] = new BigDecimal[input[0].length + 1];
-//            Arrays.fill(synapticWeights2[c], BigDecimal.valueOf(2. * Math.random() - 1.));
             for (int h = 0; h < input[0].length + 1; h++)
-                synapticWeights2[c][h] = BigDecimal.valueOf(2. * Math.random() - 1.);
+                synapticWeights2[c][h] = BigDecimal.valueOf(Math.random() - 0.5);
             deltasSynapticWeights2[c] = new BigDecimal[input[0].length + 1];
             Arrays.fill(deltasSynapticWeights2[c], BigDecimal.ZERO);
         }
@@ -141,15 +139,15 @@ public class NeuralNetwork {
             /*deltas[c] = (outIdeal[c].subtract(outActual[c], mathContext20))
                     .multiply(BigDecimal.ONE.subtract(outActual[c]), mathContext20)
                     .multiply(outActual[c], mathContext20);*/
-            if ( (int) Math.round(outActual[c].doubleValue()) > (int) Math.round(outIdeal[c].doubleValue()) )
+            /*if ( (int) Math.round(outActual[c].doubleValue()) > (int) Math.round(outIdeal[c].doubleValue()) )
                 deltas[c] = ((outActual[c].subtract(outIdeal[c], mathContext20)).pow(2, mathContext20))
                         .divide(BigDecimal.valueOf(-classesCount), mathContext20);
             else if ((int) Math.round(outActual[c].doubleValue()) < (int) Math.round(outIdeal[c].doubleValue()))
                 deltas[c] = ((outActual[c].subtract(outIdeal[c], mathContext20)).pow(2, mathContext20))
                         .divide(BigDecimal.valueOf(classesCount), mathContext20);
             else
-                deltas[c] = BigDecimal.ZERO;
-            /*deltas[c] = outIdeal[c].subtract(outActual[c], mathContext20).multiply(BigDecimal.valueOf(200000));*/
+                deltas[c] = BigDecimal.ZERO;*/
+            deltas[c] = (outIdeal[c].subtract(outActual[c], mathContext20)).multiply(BigDecimal.valueOf(classesCount*4), mathContext20);
         }
         return deltas;
     }
@@ -196,27 +194,42 @@ public class NeuralNetwork {
         return 1. / (1. + Math.exp(-x));
     }
 
-    /*public void testing(ArrayList<ArrayList<Integer>> inputs) {
-        int size = inputs.size();
-        int size2 = inputs.get(0).size();
-        BigDecimal[] outputs = new BigDecimal[size];
-        Arrays.fill(outputs, BigDecimal.ZERO);
-        MathContext mathContext20 = new MathContext(20);
-        result_testing = new ArrayList<>();
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size2; j++)
-                outputs[i] = outputs[i].add(BigDecimal.valueOf(inputs.get(i).get(j)).multiply(synapticWeights.get(j), mathContext20), mathContext20);
+    public void testing(BigDecimal[][][] input, BigDecimal[][] output) {
+        BigDecimal[][] output1;
+        BigDecimal[] output2;
+        BigDecimal error = BigDecimal.ZERO;
+        int statistic = 0;
+        boolean statAllTrue;
+        for (int i = 0; i < input.length; i++) {
+            // прямое распространение
+            output1 = forwardFirst(input[i], synapticWeights1);
+            // функция активации
+            for (int c = 0; c < classesCount; c++) {
+                for (int x = 0; x < output1[c].length; x++)
+                    output1[c][x] = BigDecimal.valueOf(sigmoid(output1[c][x].doubleValue()));
+            }
+            output2 = forward(output1, synapticWeights2);
 
-            result_testing.add( (int) Math.round(sigmoid(outputs[i].doubleValue())) );
-        }
-//            return result_testing;
+            // функция активации
+            for (int c = 0; c < classesCount; c++)
+                output2[c] = BigDecimal.valueOf(sigmoid(output2[c].doubleValue()));
 
-        int stat = 0;
-        size = testingPixelsImages.size();
-        for (int i = 0; i < size; i++) {
-            if (result_testing.get(i).equals(testingTrueFalse.get(i)))
-                stat++;
+            // расчет ошибки и статистики
+            statAllTrue = true;
+            for (int c = 0; c < classesCount; c++) {
+                if ((int) Math.round(output2[c].doubleValue()) != output[i][c].intValue()) {
+                    error = error.add((output2[c].subtract(output[i][c], mathContext20)).pow(2, mathContext20));
+                    statAllTrue = false;
+                }
+            }
+            if (statAllTrue)
+                statistic++;
         }
-        System.out.println("Stat2: " + (double) stat/size);
-    }*/
+
+        // вывод ошибки и статистики
+        System.out.println("\n\n=== TESTING ===\n");
+        System.out.println("Error: " + error);
+        System.out.println("Statistic: " + (double) statistic/input.length);
+        System.out.println();
+    }
 }
