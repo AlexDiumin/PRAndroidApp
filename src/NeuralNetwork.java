@@ -51,7 +51,6 @@ public class NeuralNetwork {
     }
 
     public void training(BigDecimal[][][] input, BigDecimal[][] output) {
-
         BigDecimal[][] output1;
         BigDecimal[] output2;
         BigDecimal[] deltas3;
@@ -59,19 +58,32 @@ public class NeuralNetwork {
         BigDecimal error;
         int statistic;
         boolean statAllTrue;
+        BigDecimal minOutput1;
+        BigDecimal maxOutput1;
         int N = 2000; // кол-во эпох
         for (int n = 0; n < N; n++) {
             error = BigDecimal.ZERO;
             statistic = 0;
             for (int i = 0; i < input.length; i++) {
                 // прямое распространение
-                output1 = forwardFirst(input[i], synapticWeights1);
-                // функция активации
+                output1 = forwardFirst(input[i], synapticWeights1); // входной слой
+                // нормализация
+                minOutput1 = output1[0][0];
+                maxOutput1 = output1[0][0];
+                for (int c = 0; c < classesCount; c++) {
+                    for (int x = 0; x < output1[c].length; x++) {
+                        if (output1[c][x].compareTo(minOutput1) < 0)
+                            minOutput1 = output1[c][x];
+                        if (output1[c][x].compareTo(maxOutput1) > 0)
+                            maxOutput1 = output1[c][x];
+                    }
+                }
                 for (int c = 0; c < classesCount; c++) {
                     for (int x = 0; x < output1[c].length; x++)
-                        output1[c][x] = BigDecimal.valueOf(sigmoid(output1[c][x].doubleValue()));
+                        output1[c][x] = (output1[c][x].subtract(minOutput1, mathContext20))
+                                .divide(maxOutput1.subtract(minOutput1, mathContext20), mathContext20);
                 }
-                output2 = forward(output1, synapticWeights2);
+                output2 = forward(output1, synapticWeights2); // скрытый слой
 
                 // функция активации
                 for (int c = 0; c < classesCount; c++)
@@ -88,10 +100,13 @@ public class NeuralNetwork {
                 if (statAllTrue)
                     statistic++;
 
-                // обратное распространение
-                deltas3 = backwardLast(output2, output[i]);
-                deltas2 = backward(output1, synapticWeights2, deltasSynapticWeights2, deltas3);
-                backwardFirst(input[i], synapticWeights1, deltasSynapticWeights1, deltas2);
+
+                if (!statAllTrue) {
+                    // обратное распространение
+                    deltas3 = backwardLast(output2, output[i]);
+                    deltas2 = backward(output1, synapticWeights2, deltasSynapticWeights2, deltas3);
+                    backwardFirst(input[i], synapticWeights1, deltasSynapticWeights1, deltas2);
+                }
             }
 
             // вывод ошибки и статистики
@@ -104,6 +119,53 @@ public class NeuralNetwork {
                 break;
             }
         }
+
+
+        // проверка
+        error = BigDecimal.ZERO;
+        statistic = 0;
+        for (int i = 0; i < input.length; i++) {
+            // прямое распространение
+            output1 = forwardFirst(input[i], synapticWeights1); // входной слой
+            // нормализация
+            minOutput1 = output1[0][0];
+            maxOutput1 = output1[0][0];
+            for (int c = 0; c < classesCount; c++) {
+                for (int x = 0; x < output1[c].length; x++) {
+                    if (output1[c][x].compareTo(minOutput1) < 0)
+                        minOutput1 = output1[c][x];
+                    if (output1[c][x].compareTo(maxOutput1) > 0)
+                        maxOutput1 = output1[c][x];
+                }
+            }
+            for (int c = 0; c < classesCount; c++) {
+                for (int x = 0; x < output1[c].length; x++)
+                    output1[c][x] = (output1[c][x].subtract(minOutput1, mathContext20))
+                            .divide(maxOutput1.subtract(minOutput1, mathContext20), mathContext20);
+            }
+            output2 = forward(output1, synapticWeights2); // скрытый слой
+
+            // функция активации
+            for (int c = 0; c < classesCount; c++)
+                output2[c] = BigDecimal.valueOf(sigmoid(output2[c].doubleValue()));
+
+            // расчет ошибки и статистики
+            statAllTrue = true;
+            for (int c = 0; c < classesCount; c++) {
+                if ((int) Math.round(output2[c].doubleValue()) != output[i][c].intValue()) {
+                    error = error.add((output2[c].subtract(output[i][c], mathContext20)).pow(2, mathContext20));
+                    statAllTrue = false;
+                }
+            }
+            if (statAllTrue)
+                statistic++;
+        }
+        // вывод ошибки и статистики проверки
+        System.out.println("\n=== CHECK ===");
+        System.out.println("Error: " + error);
+        System.out.println("Statistic: " + (double) statistic/input.length);
+        System.out.println();
+
     }
 
     // прямое распространение от входного слоя
@@ -136,9 +198,9 @@ public class NeuralNetwork {
     public BigDecimal[] backwardLast(BigDecimal[] outActual, BigDecimal[] outIdeal) {
         BigDecimal[] deltas = new BigDecimal[classesCount];
         for (int c = 0; c < classesCount; c++) { // проходимся по классам
-            /*deltas[c] = (outIdeal[c].subtract(outActual[c], mathContext20))
+            deltas[c] = (outIdeal[c].subtract(outActual[c], mathContext20))
                     .multiply(BigDecimal.ONE.subtract(outActual[c]), mathContext20)
-                    .multiply(outActual[c], mathContext20);*/
+                    .multiply(outActual[c], mathContext20);
             /*if ( (int) Math.round(outActual[c].doubleValue()) > (int) Math.round(outIdeal[c].doubleValue()) )
                 deltas[c] = ((outActual[c].subtract(outIdeal[c], mathContext20)).pow(2, mathContext20))
                         .divide(BigDecimal.valueOf(-classesCount), mathContext20);
@@ -147,7 +209,7 @@ public class NeuralNetwork {
                         .divide(BigDecimal.valueOf(classesCount), mathContext20);
             else
                 deltas[c] = BigDecimal.ZERO;*/
-            deltas[c] = (outIdeal[c].subtract(outActual[c], mathContext20)).multiply(BigDecimal.valueOf(classesCount*4), mathContext20);
+            /*deltas[c] = (outIdeal[c].subtract(outActual[c], mathContext20));//.multiply(BigDecimal.valueOf(classesCount*4), mathContext20);*/
         }
         return deltas;
     }
@@ -161,9 +223,12 @@ public class NeuralNetwork {
         for (int c = 0; c < classesCount; c++) {
             deltas[c] = new BigDecimal[outActual[0].length];
             for (int h = 0; h < outActual[0].length; h++) {
-                deltas[c][h] = (weights[c][h].multiply(nextLayerDeltas[c], mathContext20));
-//                        .multiply(BigDecimal.ONE.subtract(outActual[c][h]), mathContext20)
-//                        .multiply(outActual[c][h], mathContext20);
+                deltas[c][h] = (weights[c][h].multiply(nextLayerDeltas[c], mathContext20))
+                        .multiply(BigDecimal.ONE.subtract(outActual[c][h]), mathContext20)
+                        .multiply(outActual[c][h], mathContext20);
+
+//                deltas[c][h] = deltas[c][h].multiply(BigDecimal.valueOf(classesCount), mathContext20);
+
                 grad = nextLayerDeltas[c].multiply(outActual[c][h], mathContext20);
                 deltasWeights[c][h] = epsilon.multiply(grad, mathContext20)
                         .add(alpha.multiply(deltasWeights[c][h], mathContext20), mathContext20);
@@ -200,15 +265,28 @@ public class NeuralNetwork {
         BigDecimal error = BigDecimal.ZERO;
         int statistic = 0;
         boolean statAllTrue;
+        BigDecimal minOutput1;
+        BigDecimal maxOutput1;
         for (int i = 0; i < input.length; i++) {
             // прямое распространение
-            output1 = forwardFirst(input[i], synapticWeights1);
-            // функция активации
+            output1 = forwardFirst(input[i], synapticWeights1); // входной слой
+            // нормализация
+            minOutput1 = output1[0][0];
+            maxOutput1 = output1[0][0];
+            for (int c = 0; c < classesCount; c++) {
+                for (int x = 0; x < output1[c].length; x++) {
+                    if (output1[c][x].compareTo(minOutput1) < 0)
+                        minOutput1 = output1[c][x];
+                    if (output1[c][x].compareTo(maxOutput1) > 0)
+                        maxOutput1 = output1[c][x];
+                }
+            }
             for (int c = 0; c < classesCount; c++) {
                 for (int x = 0; x < output1[c].length; x++)
-                    output1[c][x] = BigDecimal.valueOf(sigmoid(output1[c][x].doubleValue()));
+                    output1[c][x] = (output1[c][x].subtract(minOutput1, mathContext20))
+                            .divide(maxOutput1.subtract(minOutput1, mathContext20), mathContext20);
             }
-            output2 = forward(output1, synapticWeights2);
+            output2 = forward(output1, synapticWeights2); // скрытый слой
 
             // функция активации
             for (int c = 0; c < classesCount; c++)

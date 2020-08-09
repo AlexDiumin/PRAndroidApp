@@ -11,25 +11,27 @@ public class PR {
 
     private static final ArrayList<BufferedImage> bufferedImages = new ArrayList<>();
 
-    private static BigDecimal[][][] trainingPixelsImages;
-    private static BigDecimal[][] trainingTrueFalse;
-
-    private static BigDecimal[][][] testingPixelsImages;
-    private static BigDecimal[][] testingTrueFalse;
-
     private static BufferedImage dimg_resize;
     private static BufferedImage image_listFilesForFolder;
 
     public static void main(String[] args) {
 
+        int[] boundary = new int[3];
+
         File folder = new File("0");
         listFilesForFolder(folder, bufferedImages);
-        int boundary = bufferedImages.size();
+        boundary[0] = bufferedImages.size();
         folder = new File("1");
         listFilesForFolder(folder, bufferedImages);
+        boundary[1] = bufferedImages.size();
+        folder = new File("2");
+        listFilesForFolder(folder, bufferedImages);
+        boundary[2] = bufferedImages.size();
+        folder = new File("3");
+        listFilesForFolder(folder, bufferedImages);
         int bufferedImagesSize = bufferedImages.size();
-        trainingPixelsImages = new BigDecimal[bufferedImagesSize][][];
-        trainingTrueFalse = new BigDecimal[bufferedImagesSize][];
+        BigDecimal[][][] trainingPixelsImages = new BigDecimal[bufferedImagesSize][][];
+        BigDecimal[][] trainingTrueFalse = new BigDecimal[bufferedImagesSize][];
         for (int i = 0; i < bufferedImagesSize; i++) {
 
             trainingPixelsImages[i] = new BigDecimal[][] {
@@ -49,10 +51,14 @@ public class PR {
             trainingPixelsImages[i][1][bufferedImages.get(i).getHeight()*bufferedImages.get(i).getWidth()] = BigDecimal.ONE;
             trainingPixelsImages[i][2][bufferedImages.get(i).getHeight()*bufferedImages.get(i).getWidth()] = BigDecimal.ONE;
 
-            if (i < boundary)
-                trainingTrueFalse[i] = new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ONE};
+            if (i < boundary[0])
+                trainingTrueFalse[i] = new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO};
+            else if (i < boundary[1])
+                trainingTrueFalse[i] = new BigDecimal[] {BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ZERO};
+            else if (i < boundary[2])
+                trainingTrueFalse[i] = new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ONE, BigDecimal.ZERO};
             else
-                trainingTrueFalse[i] = new BigDecimal[] {BigDecimal.ONE, BigDecimal.ZERO};
+                trainingTrueFalse[i] = new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ONE};
 
 //            bufferedImages.get(i).flush();
 //            bufferedImages.remove(bufferedImages.size() - 1);
@@ -62,12 +68,18 @@ public class PR {
 
         folder = new File("testing/0");
         listFilesForFolder(folder, bufferedImages);
-        boundary = bufferedImages.size();
+        boundary[0] = bufferedImages.size();
         folder = new File("testing/1");
         listFilesForFolder(folder, bufferedImages);
+        boundary[1] = bufferedImages.size();
+        folder = new File("testing/2");
+        listFilesForFolder(folder, bufferedImages);
+        boundary[2] = bufferedImages.size();
+        folder = new File("testing/3");
+        listFilesForFolder(folder, bufferedImages);
         bufferedImagesSize = bufferedImages.size();
-        testingPixelsImages = new BigDecimal[bufferedImagesSize][][];
-        testingTrueFalse = new BigDecimal[bufferedImagesSize][];
+        BigDecimal[][][] testingPixelsImages = new BigDecimal[bufferedImagesSize][][];
+        BigDecimal[][] testingTrueFalse = new BigDecimal[bufferedImagesSize][];
         for (int i = 0; i < bufferedImagesSize; i++) {
 
             testingPixelsImages[i] = new BigDecimal[][] {
@@ -87,10 +99,14 @@ public class PR {
             testingPixelsImages[i][1][bufferedImages.get(i).getHeight()*bufferedImages.get(i).getWidth()] = BigDecimal.ONE;
             testingPixelsImages[i][2][bufferedImages.get(i).getHeight()*bufferedImages.get(i).getWidth()] = BigDecimal.ONE;
 
-            if (i < boundary)
-                testingTrueFalse[i] = new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ONE};
+            if (i < boundary[0])
+                testingTrueFalse[i] = new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO};
+            else if (i < boundary[1])
+                testingTrueFalse[i] = new BigDecimal[] {BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.ZERO};
+            else if (i < boundary[2])
+                testingTrueFalse[i] = new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ONE, BigDecimal.ZERO};
             else
-                testingTrueFalse[i] = new BigDecimal[] {BigDecimal.ONE, BigDecimal.ZERO};
+                testingTrueFalse[i] = new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ONE};
 
 //            bufferedImages.get(i).flush();
 //            bufferedImages.remove(bufferedImages.size() - 1);
@@ -106,7 +122,10 @@ public class PR {
             System.out.println("Folder is not deleted");
 
         NeuralNetwork appleNN = new NeuralNetwork(trainingPixelsImages, trainingTrueFalse);
-        appleNN.testing(testingPixelsImages, testingTrueFalse);
+        System.out.println("Testing with training data: ");
+//        appleNN.testing(trainingPixelsImages, trainingTrueFalse);
+        System.out.println("Testing with testing data: ");
+//        appleNN.testing(testingPixelsImages, testingTrueFalse);
     }
 
     public static void listFilesForFolder(final File folder, ArrayList<BufferedImage> bufferedImages) {
