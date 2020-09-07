@@ -60,6 +60,46 @@ public class FullyNected {
         this.derivativesReLU = new Tensor(this.outputSize); // создаем тензор производных ReLU
     }
 
+    public FullyNected(final TensorSize inputSize, final TensorSize outputSize, boolean lastLayer) {
+        this.inputSize = inputSize; // запоминаем входной размер тензора
+        this.outputSize = outputSize; // запоминаем выходной размер тензора
+
+        this.weights = new Tensor[this.outputSize.depth][][];
+        this.biases = new Tensor(this.outputSize);
+        this.gradWeights = new Tensor[this.outputSize.depth][][];
+        this.gradBiases = new Tensor(this.outputSize); // инициализация градиентов смещений нулями
+        this.deltaWeights = new Tensor[this.outputSize.depth][][];
+        this.deltaBiases = new Tensor(this.outputSize); // инициализация разниц смещений нулями
+        double variance = 2. / (this.inputSize.depth * this.inputSize.height * this.inputSize.width + this.outputSize.depth * this.outputSize.height * this.outputSize.width); // дисперсия
+
+        // проходимся по выходному тензору
+        for (int oD = 0; oD < this.outputSize.depth; oD++) {
+            this.weights[oD] = new Tensor[this.outputSize.height][];
+            this.gradWeights[oD] = new Tensor[this.outputSize.height][];
+            this.deltaWeights[oD] = new Tensor[this.outputSize.height][];
+            for (int oH = 0; oH < this.outputSize.height; oH++) {
+                this.weights[oD][oH] = new Tensor[this.outputSize.width];
+                this.gradWeights[oD][oH] = new Tensor[this.outputSize.width];
+                this.deltaWeights[oD][oH] = new Tensor[this.outputSize.width];
+                for (int oW = 0; oW < this.outputSize.width; oW++) {
+                    this.weights[oD][oH][oW] = new Tensor(this.inputSize);
+                    // проходимся по входному тензору
+                    for (int iD = 0; iD < this.inputSize.depth; iD++) {
+                        for (int iH = 0; iH < this.inputSize.height; iH++) {
+                            for (int iW = 0; iW < this.inputSize.width; iW++)
+                                this.weights[oD][oH][oW].setByIndex(iD, iH, iW, BigDecimal.valueOf(2.*variance*Math.random() - variance)); // инициализируем веса
+                        }
+                    }
+                    this.biases.setByIndex(oD, oH, oW, BigDecimal.valueOf(2.*variance*Math.random() - variance)); // инициализируем веса
+                    this.gradWeights[oD][oH][oW] = new Tensor(this.inputSize); // инициализация градиентов весов нулями
+                    this.deltaWeights[oD][oH][oW] = new Tensor(this.inputSize); // инициализация разниц весов нулями
+                }
+            }
+        }
+
+        this.derivativesReLU = new Tensor(this.outputSize); // создаем тензор производных ReLU
+    }
+
     public Tensor forward(final Tensor input) {
         Tensor output = new Tensor(this.outputSize); // создаем выходной тензор
 
@@ -88,6 +128,43 @@ public class FullyNected {
                     this.derivativesReLU.setByIndex(oD, oH, oW,
                             (sum.compareTo(BigDecimal.ZERO) > 0 ? BigDecimal.ONE : BigDecimal.valueOf(0.01)));
                     sum = sum.compareTo(BigDecimal.ZERO) >= 0 ? sum : sum.multiply(BigDecimal.valueOf(0.01), mathContext20); // ReLU
+
+
+
+                    output.setByIndex(oD, oH, oW, sum); // записываем сумму в выходной тензор
+                }
+            }
+        }
+
+        return output; // возвращаем выходной тензор
+    }
+    public Tensor forward(final Tensor input, boolean lastLayer) {
+        Tensor output = new Tensor(this.outputSize); // создаем выходной тензор
+
+        BigDecimal sum;
+        // проходимся по выходному тензору
+        for (int oD = 0; oD < this.outputSize.depth; oD++) {
+            for (int oH = 0; oH < this.outputSize.height; oH++) {
+                for (int oW = 0; oW < this.outputSize.width; oW++) {
+                    sum = this.biases.getByIndex(oD, oH, oW); // сразу прибавляем смещение
+
+                    // проходимся по входному тензору
+                    for (int iD = 0; iD < this.inputSize.depth; iD++) {
+                        for (int iH = 0; iH < this.inputSize.height; iH++) {
+                            for (int iW = 0; iW < this.inputSize.width; iW++)
+                                sum = sum.add(input.getByIndex(iD, iH, iW)
+                                        .multiply(this.weights[oD][oH][oW].getByIndex(iD, iH, iW), mathContext20), mathContext20);
+                        }
+                    }
+
+                    /*// вычисляем и запоминаем производные ReLU
+                    this.derivativesReLU.setByIndex(oD, oH, oW,
+                            (sum.compareTo(BigDecimal.ZERO) > 0 ? BigDecimal.ONE : BigDecimal.ZERO));
+
+                    sum = sum.compareTo(BigDecimal.ZERO) >= 0 ? sum : BigDecimal.ZERO; // ReLU*/
+                    sum = this.sigmoid(sum); // sigmoid
+                    this.derivativesReLU.setByIndex(oD, oH, oW, (BigDecimal.ONE.subtract(sum, mathContext20)).multiply(sum, mathContext20)); // производная sigmoid
+
 
 
 
@@ -193,5 +270,9 @@ public class FullyNected {
 
     public final TensorSize getOutputSize() {
         return this.outputSize;
+    }
+
+    public BigDecimal sigmoid(BigDecimal x) {
+        return BigDecimal.valueOf(1. / (1. + Math.pow(Math.E, -x.doubleValue())));
     }
 }

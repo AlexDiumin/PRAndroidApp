@@ -103,12 +103,12 @@ public class NeuralNetwork {
 
         this.fullyNecteds[0] = new FullyNected(this.maxPoolings[4].getOutputSize(), new TensorSize(1, 1, 8));
         this.fullyNecteds[1] = new FullyNected(this.fullyNecteds[0].getOutputSize(), new TensorSize(1, 1, 8));
-        this.fullyNecteds[2] = new FullyNected(this.fullyNecteds[1].getOutputSize(), this.outputSize);
+        this.fullyNecteds[2] = new FullyNected(this.fullyNecteds[1].getOutputSize(), this.outputSize, true);
 
         this.forwardOutputs = new Tensor[8 + 5 + 3];
 
-        this.epsilon = BigDecimal.valueOf(0.001);
-        this.alpha = BigDecimal.valueOf(0.0001);
+        this.epsilon = BigDecimal.valueOf(0.7);
+        this.alpha = BigDecimal.valueOf(0.007);
     }
 
     public void training(final Tensor[] input, final Tensor[] trueOutput) {
@@ -131,8 +131,19 @@ public class NeuralNetwork {
                     for (int h = 0; h < this.outputSize.height; h++) {
                         for (int w = 0; w < this.outputSize.width; w++) {
                             // считаем дельты по выходу
-                            deltasOut.setByIndex(d, h, w, trueOutput[i].getByIndex(d, h, w)
-                                    .subtract(networkOutput.getByIndex(d, h, w), mathContext20));
+                            /*deltasOut.setByIndex(d, h, w, trueOutput[i].getByIndex(d, h, w)
+                                    .subtract(networkOutput.getByIndex(d, h, w), mathContext20));*/
+                            if (trueOutput[i].getByIndex(d, h, w).compareTo(BigDecimal.ONE) == 0)
+                                networkOutput.setByIndex(d, h, w, BigDecimal.ONE.subtract(networkOutput.getByIndex(d, h, w), mathContext20));
+                            if (Math.round(trueOutput[i].getByIndex(d, h, w).doubleValue()) == Math.round(networkOutput.getByIndex(d, h, w).doubleValue())) {
+                                statistic += 1;
+
+                                deltasOut.setByIndex(d, h, w, BigDecimal.ZERO);
+                            }
+                            else {
+                                deltasOut.setByIndex(d, h, w, trueOutput[i].getByIndex(d, h, w)
+                                        .subtract(networkOutput.getByIndex(d, h, w), mathContext20));
+                            }
 
 
 
@@ -143,14 +154,15 @@ public class NeuralNetwork {
                             error = error.add(BigDecimal.valueOf(Math.abs(deltasOut.getByIndex(d, h, w).doubleValue())), mathContext20); // наращиваем ошибку
 
                             // если ответ сети совпадает с идеальным - прибавляем 1 к статистике
-                            if (Math.round(trueOutput[i].getByIndex(d, h, w).doubleValue()) == Math.round(networkOutput.getByIndex(d, h, w).doubleValue()))
-                                statistic += 1;
+//                            if (Math.round(trueOutput[i].getByIndex(d, h, w).doubleValue()) == Math.round(networkOutput.getByIndex(d, h, w).doubleValue()))
+//                                statistic += 1;
                         }
                     }
                 }
 
 
 
+                this.epsilon = this.epsilon.divide(BigDecimal.valueOf(1.2), mathContext20);
 //                this.alpha = this.alpha.divide(BigDecimal.valueOf(1.2), mathContext20);
 //                System.exit(0);
 
@@ -173,7 +185,7 @@ public class NeuralNetwork {
                 this.epsilon = this.epsilon.divide(BigDecimal.valueOf(2), mathContext20);
             }
             prevError = error;*/
-            this.epsilon = this.epsilon.divide(BigDecimal.valueOf(1.2), mathContext20);
+//            this.epsilon = this.epsilon.divide(BigDecimal.valueOf(1.2), mathContext20);
 
 
 
@@ -256,7 +268,7 @@ public class NeuralNetwork {
 
         this.forwardOutputs[13] = this.fullyNecteds[0].forward(this.forwardOutputs[12]);
         this.forwardOutputs[14] = this.fullyNecteds[1].forward(this.forwardOutputs[13]);
-        this.forwardOutputs[15] = this.fullyNecteds[2].forward(this.forwardOutputs[14]);
+        this.forwardOutputs[15] = this.fullyNecteds[2].forward(this.forwardOutputs[14], true);
 
 
 //        for (int d = 0; d < this.forwardOutputs[15].getDepth(); d++) {
