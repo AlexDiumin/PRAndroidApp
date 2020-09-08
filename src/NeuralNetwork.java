@@ -1,10 +1,17 @@
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.util.ArrayList;
 
 public class NeuralNetwork {
 
     private static final MathContext mathContext20 = new MathContext(20);
 
+    private final TensorSize inputSize; // размер входного тензора
     private final TensorSize outputSize; // размер выходного тензора
 
     private final Convolution[] convolutions; // сверточные слои
@@ -14,8 +21,8 @@ public class NeuralNetwork {
     private final Tensor[] forwardOutputs; // выходные тензоры прямого распространения
 
     // гиперпараметры
-    private BigDecimal epsilon; // скорость обучения
-    private BigDecimal alpha; // момент
+    private final BigDecimal epsilon; // скорость обучения
+    private final BigDecimal alpha; // момент
 
     /*public NeuralNetwork(final TensorSize inputSize, int classesCount) {
         this.outputSize = new TensorSize(1, 1, classesCount); // запоминаем размер выходного тензора
@@ -67,6 +74,7 @@ public class NeuralNetwork {
         this.alpha = BigDecimal.valueOf(0.07);
     }*/
     public NeuralNetwork(final TensorSize inputSize, int classesCount) {
+        this.inputSize = inputSize; // запоминаем размер выходного тензора
         this.outputSize = new TensorSize(1, 1, classesCount); // запоминаем размер выходного тензора
 
         int filterSize = 3; // размер фильтра для сверточных слоев
@@ -78,7 +86,7 @@ public class NeuralNetwork {
         this.maxPoolings = new MaxPooling[5];
         this.fullyNecteds = new FullyNected[3];
 
-        this.convolutions[0] = new Convolution(inputSize, filterSize, 2, stride, padding);
+        this.convolutions[0] = new Convolution(this.inputSize, filterSize, 2, stride, padding);
 
         this.maxPoolings[0] = new MaxPooling(this.convolutions[0].getOutputSize(), scale);
 
@@ -111,39 +119,41 @@ public class NeuralNetwork {
         this.alpha = BigDecimal.valueOf(0.007);
     }
 
-    public void training(final Tensor[] input, final Tensor[] trueOutput) {
+    public void training(final ArrayList<String> inputPaths, final ArrayList<Integer> classNumbers) {
+        Tensor input; // тензор для хранения входных изображений
+        Tensor trueOutput = new Tensor(this.outputSize); // тензор для хранения идеальных выходов
         Tensor networkOutput; // тензор выходов нейронной сети
         Tensor deltasOut = new Tensor(this.outputSize); // тензор выходных дельт
         BigDecimal error;
         int statistic;
-        BigDecimal prevError = BigDecimal.ZERO;
         int N = 2000; // кол-во эпох
         // проходимся по эпохам
         for (int n = 0; n < N; n++) {
             error = BigDecimal.ZERO;
             statistic = 0;
             // проходимся по входным тензорам
-            for (int i = 0; i < input.length; i++) {
-                networkOutput = this.forward(input[i]); // прямое распространение + получаем выход сети
+            for (int i = 0; i < inputPaths.size(); i++) {
+                input = this.getTensorFromImage(inputPaths.get(i), this.inputSize); // инициализируем входной тензор
+                // инициализируем идеальный выходной тензор
+                for (int j = 1; j <= this.outputSize.depth*this.outputSize.height*this.outputSize.width; j++) {
+                    if (j == classNumbers.get(i))
+                        trueOutput.setByIndex(0, 0, j - 1, BigDecimal.ONE);
+                    else
+                        trueOutput.setByIndex(0, 0, j - 1, BigDecimal.ZERO);
+                }
+
+                networkOutput = this.forward(input); // прямое распространение + получаем выход сети
 
                 // проходимся по выходному тензору
                 for (int d = 0; d < this.outputSize.depth; d++) {
                     for (int h = 0; h < this.outputSize.height; h++) {
                         for (int w = 0; w < this.outputSize.width; w++) {
-                            // считаем дельты по выходу
-                            /*deltasOut.setByIndex(d, h, w, trueOutput[i].getByIndex(d, h, w)
-                                    .subtract(networkOutput.getByIndex(d, h, w), mathContext20));*/
-                            if (trueOutput[i].getByIndex(d, h, w).compareTo(BigDecimal.ONE) == 0)
+                            if (trueOutput.getByIndex(d, h, w).compareTo(BigDecimal.ONE) == 0)
                                 networkOutput.setByIndex(d, h, w, BigDecimal.ONE.subtract(networkOutput.getByIndex(d, h, w), mathContext20));
-                            if (Math.round(trueOutput[i].getByIndex(d, h, w).doubleValue()) == Math.round(networkOutput.getByIndex(d, h, w).doubleValue())) {
-                                statistic += 1;
 
-                                deltasOut.setByIndex(d, h, w, BigDecimal.ZERO);
-                            }
-                            else {
-                                deltasOut.setByIndex(d, h, w, trueOutput[i].getByIndex(d, h, w)
-                                        .subtract(networkOutput.getByIndex(d, h, w), mathContext20));
-                            }
+                            // считаем дельты по выходу
+                            deltasOut.setByIndex(d, h, w, trueOutput.getByIndex(d, h, w)
+                                    .subtract(networkOutput.getByIndex(d, h, w), mathContext20));
 
 
 
@@ -154,54 +164,93 @@ public class NeuralNetwork {
                             error = error.add(BigDecimal.valueOf(Math.abs(deltasOut.getByIndex(d, h, w).doubleValue())), mathContext20); // наращиваем ошибку
 
                             // если ответ сети совпадает с идеальным - прибавляем 1 к статистике
-//                            if (Math.round(trueOutput[i].getByIndex(d, h, w).doubleValue()) == Math.round(networkOutput.getByIndex(d, h, w).doubleValue()))
-//                                statistic += 1;
+                            if (Math.round(trueOutput.getByIndex(d, h, w).doubleValue()) == Math.round(networkOutput.getByIndex(d, h, w).doubleValue()))
+                                statistic += 1;
                         }
                     }
                 }
 
 
 
-                this.epsilon = this.epsilon.divide(BigDecimal.valueOf(1.2), mathContext20);
-//                this.alpha = this.alpha.divide(BigDecimal.valueOf(1.2), mathContext20);
-//                System.exit(0);
+//                this.epsilon = this.epsilon.divide(BigDecimal.valueOf(1.2), mathContext20);
 
 
 
-
-
-                this.backward(deltasOut, input[i]); // обратное распространение
+                this.backward(deltasOut, input); // обратное распространение
 
                 this.updateWeights(); // обновление весов
             }
 
 
 
-
-
-            /*if (error.subtract(prevError, mathContext20).compareTo(BigDecimal.ZERO) >= 0)
-                this.epsilon = this.epsilon.add((BigDecimal.ONE.subtract(this.epsilon, mathContext20)).divide(BigDecimal.valueOf(2), mathContext20), mathContext20);
-            else {
-                this.epsilon = this.epsilon.divide(BigDecimal.valueOf(2), mathContext20);
-            }
-            prevError = error;*/
 //            this.epsilon = this.epsilon.divide(BigDecimal.valueOf(1.2), mathContext20);
-
-
-
+//            this.epsilon = this.epsilon.divide(BigDecimal.valueOf(Math.sqrt(n + 1.)), mathContext20);
 
 
 
             System.out.println();
             System.out.println(n + " Error: " + error); // выводим значение ошибки
-            System.out.println(n + " Statistic: " + (double) statistic / (this.outputSize.width * input.length)); // выводим значение статистики
+            System.out.println(n + " Statistic: " + (double) statistic / (this.outputSize.depth*this.outputSize.height*this.outputSize.width * inputPaths.size())); // выводим значение статистики
             System.out.println();
             // если все ответы сети совпадают с идеальными, то обучение останавливаеться
-            if (statistic == this.outputSize.width * input.length) {
+            if (statistic == this.outputSize.depth*this.outputSize.height*this.outputSize.width * inputPaths.size()) {
                 System.out.println("!!! CONGRATULATIONS !!!");
                 break;
             }
         }
+    }
+
+    public void testing(final ArrayList<String> inputPaths, final ArrayList<Integer> classNumbers) {
+        Tensor input; // тензор для хранения входных изображений
+        Tensor trueOutput = new Tensor(this.outputSize); // тензор для хранения идеальных выходов
+        Tensor networkOutput; // тензор выходов нейронной сети
+        Tensor deltasOut = new Tensor(this.outputSize); // тензор выходных дельт
+        BigDecimal error = BigDecimal.ZERO;
+        int statistic = 0;
+        // проходимся по входным тензорам
+        for (int i = 0; i < inputPaths.size(); i++) {
+            input = this.getTensorFromImage(inputPaths.get(i), this.inputSize); // инициализируем входной тензор
+            // инициализируем идеальный выходной тензор
+            for (int j = 1; j <= this.outputSize.depth*this.outputSize.height*this.outputSize.width; j++) {
+                if (j == classNumbers.get(i))
+                    trueOutput.setByIndex(0, 0, j - 1, BigDecimal.ONE);
+                else
+                    trueOutput.setByIndex(0, 0, j - 1, BigDecimal.ZERO);
+            }
+
+            networkOutput = this.forward(input); // прямое распространение + получаем выход сети
+
+            // проходимся по выходному тензору
+            for (int d = 0; d < this.outputSize.depth; d++) {
+                for (int h = 0; h < this.outputSize.height; h++) {
+                    for (int w = 0; w < this.outputSize.width; w++) {
+                        if (trueOutput.getByIndex(d, h, w).compareTo(BigDecimal.ONE) == 0)
+                            networkOutput.setByIndex(d, h, w, BigDecimal.ONE.subtract(networkOutput.getByIndex(d, h, w), mathContext20));
+
+                        // считаем дельты по выходу
+                        deltasOut.setByIndex(d, h, w, trueOutput.getByIndex(d, h, w)
+                                .subtract(networkOutput.getByIndex(d, h, w), mathContext20));
+
+
+
+                        System.out.println(deltasOut.getByIndex(d, h, w));
+
+
+
+                        error = error.add(BigDecimal.valueOf(Math.abs(deltasOut.getByIndex(d, h, w).doubleValue())), mathContext20); // наращиваем ошибку
+
+                        // если ответ сети совпадает с идеальным - прибавляем 1 к статистике
+                        if (Math.round(trueOutput.getByIndex(d, h, w).doubleValue()) == Math.round(networkOutput.getByIndex(d, h, w).doubleValue()))
+                            statistic += 1;
+                    }
+                }
+            }
+        }
+
+        System.out.println();
+        System.out.println("testing Error: " + error); // выводим значение ошибки
+        System.out.println("testing Statistic: " + (double) statistic / (this.outputSize.depth*this.outputSize.height*this.outputSize.width * inputPaths.size())); // выводим значение статистики
+        System.out.println();
     }
 
     /*public Tensor forward(final Tensor input) {
@@ -270,18 +319,6 @@ public class NeuralNetwork {
         this.forwardOutputs[14] = this.fullyNecteds[1].forward(this.forwardOutputs[13]);
         this.forwardOutputs[15] = this.fullyNecteds[2].forward(this.forwardOutputs[14], true);
 
-
-//        for (int d = 0; d < this.forwardOutputs[15].getDepth(); d++) {
-//            for (int h = 0; h < this.forwardOutputs[15].getHeight(); h++) {
-//                for (int w = 0; w < this.forwardOutputs[15].getWidth(); w++)
-//                    System.out.print(this.forwardOutputs[15].getByIndex(d, h, w) + " ");
-//                System.out.println();
-//            }
-//            System.out.println();
-//        }
-//        System.exit(0);
-
-
         return this.forwardOutputs[15];
     }
 
@@ -325,7 +362,7 @@ public class NeuralNetwork {
         Tensor dOut; // тензор для временного хранения дельт для предыдущих слоев
 
         // обратное распространение по всем слоям
-        dOut = this.fullyNecteds[2].backward(deltasOut, this.forwardOutputs[14]);
+        dOut = this.fullyNecteds[2].backward(deltasOut, this.forwardOutputs[14], this.forwardOutputs[15]);
         dOut = this.fullyNecteds[1].backward(dOut, this.forwardOutputs[13]);
         dOut = this.fullyNecteds[0].backward(dOut, this.forwardOutputs[12]);
 
@@ -397,5 +434,49 @@ public class NeuralNetwork {
             }
         }
         return deltasOut; // возвращаем дельты
+    }
+
+    public Tensor getTensorFromImage(String path, TensorSize size) {
+
+        Tensor output = new Tensor(size); // создаем выходной тензор
+
+        BufferedImage bufferedImage;
+        try {
+            bufferedImage = ImageIO.read(new File(path)); // записываем изображение
+
+            // изменяем размер, если нужно
+            if (bufferedImage.getWidth() != size.width || bufferedImage.getHeight() != size.height)
+                bufferedImage = this.resize(bufferedImage, size.width, size.height);
+
+            // инициализируем выходные тензор
+            for (int h = 0; h < size.height; h++) {
+                for (int w = 0; w < size.width; w++) {
+                    output.setByIndex(0, h, w, BigDecimal.valueOf(((bufferedImage.getRGB(h, w) >> 16) & 255) / 255.)); // Red
+                    output.setByIndex(1, h, w, BigDecimal.valueOf(((bufferedImage.getRGB(h, w) >> 8) & 255) / 255.)); // Green
+                    output.setByIndex(2, h, w, BigDecimal.valueOf((bufferedImage.getRGB(h, w) & 255) / 255.)); // Blue
+                }
+            }
+
+            // очистка памяти
+            bufferedImage.flush();
+            bufferedImage = null;
+
+            return output; // возвращаем изображение в тензоре
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public BufferedImage resize(BufferedImage img, int newW, int newH) {
+        Image tmp = img.getScaledInstance(newW, newH, Image.SCALE_SMOOTH);
+        BufferedImage resizedImage = new BufferedImage(newW, newH, BufferedImage.TYPE_INT_ARGB);
+
+        Graphics2D g2d = resizedImage.createGraphics();
+        g2d.drawImage(tmp, 0, 0, null);
+        g2d.dispose();
+
+        return resizedImage;
     }
 }

@@ -9,18 +9,39 @@ import java.util.Objects;
 
 public class Main {
 
-    private static final TensorSize inputSize = new TensorSize(3, 224, 224); // длинна и ширина входных изображений
+    private static final TensorSize inputSize = new TensorSize(3, 160, 160); // длинна и ширина входных изображений
     private static final int classesCount = 2; // кол-во классов
 
     public static void main(String[] args) {
-        ArrayList<Tensor> input = new ArrayList<>();
-        ArrayList<Tensor> output = new ArrayList<>();
+        ArrayList<String> inputPaths = new ArrayList<>(); // массив путей к изображеням
+        ArrayList<Integer> classNumbers = new ArrayList<>(); // массив номеров классов
 
+        arraysFromFolder(inputPaths, classNumbers, new File("training"));
+
+        NeuralNetwork convNet = new NeuralNetwork(inputSize, classesCount); // создаем нейросеть
+        convNet.training(inputPaths, classNumbers); // начинаем обучение
+
+        // очистка памяти
+        inputPaths.clear();
+        inputPaths = null;
+        classNumbers.clear();
+        classNumbers = null;
+
+        System.out.println("\n ===== Testing =====");
+
+        inputPaths = new ArrayList<>();
+        classNumbers = new ArrayList<>();
+
+        arraysFromFolder(inputPaths, classNumbers, new File("testing"));
+
+        convNet.testing(inputPaths, classNumbers); // тестирование
+    }
+
+    public static void readFromFolder(ArrayList<Tensor> input, ArrayList<Tensor> output, String folderName) {
         int inputCount;
         ArrayList<BufferedImage> bufferedImages = new ArrayList<>();
         for (int f = 0; f <= classesCount; f++) {
-            listFilesForFolder(new File(String.valueOf(f)), bufferedImages); // считываем с папки в массив
-
+            listFilesForFolder(new File(folderName + "/" + f), bufferedImages); // считываем с папки в массив
             inputCount = input.size();
             // данные с массива переносим во входной и выходной тензоры
             for (int i = inputCount; i < inputCount + bufferedImages.size(); i++) {
@@ -30,9 +51,9 @@ public class Main {
                 // инициализируем входные тензоры
                 for (int h = 0; h < inputSize.height; h++) {
                     for (int w = 0; w < inputSize.width; w++) {
-                        input.get(i).setByIndex(0, h, w, BigDecimal.valueOf(new Color(bufferedImages.get(i - inputCount).getRGB(h, w)).getRed()/255.));
-                        input.get(i).setByIndex(1, h, w, BigDecimal.valueOf(new Color(bufferedImages.get(i - inputCount).getRGB(h, w)).getGreen()/255.));
-                        input.get(i).setByIndex(2, h, w, BigDecimal.valueOf(new Color(bufferedImages.get(i - inputCount).getRGB(h, w)).getBlue()/255.));
+                        input.get(i).setByIndex(0, h, w, BigDecimal.valueOf(((bufferedImages.get(i - inputCount).getRGB(h, w) >> 16) & 255) / 255.)); // Red
+                        input.get(i).setByIndex(1, h, w, BigDecimal.valueOf(((bufferedImages.get(i - inputCount).getRGB(h, w) >> 8) & 255) / 255.)); // Green
+                        input.get(i).setByIndex(2, h, w, BigDecimal.valueOf((bufferedImages.get(i - inputCount).getRGB(h, w) & 255) / 255.)); // Blue
                     }
                 }
 
@@ -45,19 +66,15 @@ public class Main {
                 }
             }
 
-            bufferedImages.clear(); // очищаем массив изображений
+            // очищаем массив изображений
+            for (int i = bufferedImages.size() - 1; i >= 0; i--)
+                bufferedImages.get(i).flush();
+            bufferedImages.clear();
+
+
+            System.out.println(folderName + "/" + f + " - READY\n");
         }
-
         bufferedImages = null; // очистка памяти
-
-        Tensor[] in = input.toArray(Tensor[]::new); // преобразование в массив
-        input.clear(); // очистка памяти
-        input = null; // очистка памяти
-        Tensor[] out = output.toArray(Tensor[]::new); // преобразование в массив
-        output.clear(); // очистка памяти
-        output = null; // очистка памяти
-
-        new NeuralNetwork(inputSize, classesCount).training(in, out); // создаем нейросеть и начинаем обучение
     }
 
     public static void listFilesForFolder(final File folder, ArrayList<BufferedImage> bufferedImages) {
@@ -90,5 +107,23 @@ public class Main {
         g2d.dispose();
 
         return resizedImage;
+    }
+
+    public static void arraysFromFolder(ArrayList<String> inputPaths, ArrayList<Integer> classNumbers, final File folder) {
+        for (final File fileEntry : Objects.requireNonNull(folder.listFiles())) {
+            if (fileEntry.isDirectory())
+                arraysFromFolder(inputPaths, classNumbers, fileEntry);
+            else {
+                inputPaths.add(fileEntry.getPath()); // сохраняем путь к изображению
+
+                for (int c = 0; c <= classesCount; c++) {
+                    if (inputPaths.get(inputPaths.size() - 1).contains("/" + c + "/")
+                            || inputPaths.get(inputPaths.size() - 1).contains("\\" + c + "\\")) {
+                        classNumbers.add(c); // сохраняем номер класса изображения
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
